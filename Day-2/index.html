@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Simple Cart - Fake Store API</title>
+</head>
+<body>
+  <h2>Shopping Cart Calculator</h2>
+  <div id="products"></div>
+  <hr>
+  <h3>Cart Summary</h3>
+  <p id="subtotal">Subtotal: $0.00</p>
+  <p id="quantityDiscount">Quantity Discount (10%): -$0.00</p>
+  <p id="priceDiscount">Price Discount (5%): -$0.00</p>
+  <h3 id="finalTotal">Final Total: $0.00</h3>
+
+  <script>
+    const cart = [];
+
+    function getProducts() {
+      return fetch("https://fakestoreapi.com/products")
+        .then(response => response.json());
+    }
+
+    function renderProducts(products) {
+      const container = document.getElementById("products");
+      container.innerHTML = "";
+
+      products.forEach(item => {
+        const div = document.createElement("div");
+        div.style.margin = "10px";
+        div.style.padding = "10px";
+        // div.style.border = "1px";
+
+        div.innerHTML = `
+          <h4>${item.title}</h4>
+          <p>Price: $${item.price.toFixed(2)}</p>
+          <button id="btn-${item.id}">Add to Cart</button>
+        `;
+        container.appendChild(div);
+
+        document.getElementById(`btn-${item.id}`).addEventListener("click", function() {
+          addToCart(item.id, item.title, item.price);
+        });
+      });
+    }
+
+    function addToCart(id, name, price) {
+      const existing = cart.find(item => item.id === id);
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        cart.push({ id, name, price, quantity: 1 });
+      }
+      calculateBill();
+    }
+
+    function calculateBill() {
+      const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+      let quantityDiscount = 0;
+      let priceDiscount = 0;
+
+      if (totalQuantity > 10) {
+        quantityDiscount = subtotal * 0.10;
+      }
+
+      const afterQuantityDiscount = subtotal - quantityDiscount;
+
+      if (subtotal > 500) {
+        priceDiscount = afterQuantityDiscount * 0.05;
+      }
+
+      const finalTotal = afterQuantityDiscount - priceDiscount;
+
+      document.getElementById("subtotal").textContent = `Subtotal: $${subtotal.toFixed(2)}`;
+      document.getElementById("quantityDiscount").textContent = `Quantity Discount (10%): -$${quantityDiscount.toFixed(2)}`;
+      document.getElementById("priceDiscount").textContent = `Price Discount (5%): -$${priceDiscount.toFixed(2)}`;
+      document.getElementById("finalTotal").textContent = `Final Total: $${finalTotal.toFixed(2)}`;
+    }
+
+    getProducts()
+      .then(products => renderProducts(products))
+      .catch(err => console.error("Error loading products:", err));
+  </script>
+</body>
+</html>
