@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Form to JSON Converter (with LocalStorage)</title>
+  <style>
+    :root {
+      --bg-color: #f9f9f9;
+      --text-color: #222;
+      --box-bg: #fff;
+      --border-color: #ccc;
+      --btn-bg: #007bff;
+    }
+
+    body.dark {
+      --bg-color: #121212;
+      --text-color: #f5f5f5;
+      --box-bg: #1e1e1e;
+      --border-color: #333;
+      --btn-bg: #444;
+    }
+
+    body {
+      font-family: "Poppins", sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 20px;
+      transition: all 0.3s ease;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    form {
+      max-width: 600px;
+      margin: 20px auto;
+      background: var(--box-bg);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    label {
+      font-weight: 600;
+      display: block;
+      margin-top: 10px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--box-bg);
+      color: var(--text-color);
+    }
+
+    .error {
+      color: red;
+      font-size: 13px;
+    }
+
+    .checkbox-group, .radio-group {
+      margin-top: 5px;
+    }
+
+    button {
+      margin-top: 15px;
+      padding: 10px 15px;
+      background: var(--btn-bg);
+      border: none;
+      color: #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      opacity: 0.85;
+    }
+
+    #output {
+      max-width: 600px;
+      margin: 30px auto;
+      background: var(--box-bg);
+      padding: 20px;
+      border-radius: 12px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      border: 1px solid var(--border-color);
+    }
+
+    .theme-toggle {
+      display: block;
+      margin: 0 auto 20px;
+      background: var(--btn-bg);
+      color: #fff;
+    }
+
+    .record {
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
+
+    .action-btns {
+      margin-top: 5px;
+    }
+
+    .action-btns button {
+      margin-right: 5px;
+      background: #28a745;
+    }
+
+    .delete-btn {
+      background: #dc3545 !important;
+    }
+  </style>
+</head>
+<body>
+  <h1>Data Entry Form</h1>
+
+  <button id="themeToggle" class="theme-toggle">Toggle Dark Mode</button>
+
+  <form id="userForm">
+    <label>Name:</label>
+    <input type="text" id="name">
+    <div class="error" id="nameError"></div>
+
+    <label>Email:</label>
+    <input type="email" id="email">
+    <div class="error" id="emailError"></div>
+
+    <label>Age:</label>
+    <input type="number" id="age">
+    <div class="error" id="ageError"></div>
+
+    <label>Date of Birth:</label>
+    <input type="date" id="dob">
+    <div class="error" id="dobError"></div>
+
+    <label>Gender:</label>
+    <div class="radio-group">
+      <label><input type="radio" name="gender" value="Male"> Male</label>
+      <label><input type="radio" name="gender" value="Female"> Female</label>
+      <label><input type="radio" name="gender" value="Other"> Other</label>
+    </div>
+    <div class="error" id="genderError"></div>
+
+    <label>Hobbies:</label>
+    <div class="checkbox-group">
+      <label><input type="checkbox" value="Reading"> Reading</label>
+      <label><input type="checkbox" value="Traveling"> Traveling</label>
+      <label><input type="checkbox" value="Coding"> Coding</label>
+      <label><input type="checkbox" value="Music"> Music</label>
+    </div>
+    <div class="error" id="hobbiesError"></div>
+
+    <label>Country:</label>
+    <select id="country">
+      <option value="">-- Select Country --</option>
+      <option value="USA">USA</option>
+      <option value="UK">UK</option>
+      <option value="India">India</option>
+      <option value="Canada">Canada</option>
+    </select>
+    <div class="error" id="countryError"></div>
+
+    <button type="submit">Submit</button>
+  </form>
+
+  <div id="output"></div>
+
+  <script>
+    const form = document.getElementById('userForm');
+    const output = document.getElementById('output');
+    const themeToggle = document.getElementById('themeToggle');
+
+    let jsonData = JSON.parse(localStorage.getItem('formData')) || [];
+    let editIndex = null;
+
+    if (localStorage.getItem('theme') === 'dark') {
+      document.body.classList.add('dark');
+      themeToggle.textContent = "Toggle Light Mode";
+    }
+
+    themeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      const isDark = document.body.classList.contains('dark');
+      themeToggle.textContent = isDark ? "Toggle Light Mode" : "Toggle Dark Mode";
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    });
+
+    function renderData() {
+      if (jsonData.length === 0) {
+        output.textContent = "[]";
+        return;
+      }
+
+      output.innerHTML = "";
+      jsonData.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.classList.add('record');
+        div.innerHTML = `
+          <pre>${JSON.stringify(item, null, 4)}</pre>
+          <div class="action-btns">
+            <button onclick="editRecord(${index})">✏️ Edit</button>
+            <button class="delete-btn" onclick="deleteRecord(${index})">🗑️ Delete</button>
+          </div>
+        `;
+        output.appendChild(div);
+      });
+    }
+
+    window.editRecord = function(index) {
+      const record = jsonData[index];
+      document.getElementById('name').value = record.name;
+      document.getElementById('email').value = record.email;
+      document.getElementById('age').value = record.age;
+      document.getElementById('dob').value = record.dob;
+      document.querySelector(`input[name="gender"][value="${record.gender}"]`).checked = true;
+
+      document.querySelectorAll('.checkbox-group input').forEach(cb => {
+        cb.checked = record.hobbies.includes(cb.value);
+      });
+
+      document.getElementById('country').value = record.country;
+      editIndex = index;
+    };
+
+    window.deleteRecord = function(index) {
+      jsonData.splice(index, 1);
+      localStorage.setItem('formData', JSON.stringify(jsonData));
+      renderData();
+    };
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      document.querySelectorAll('.error').forEach(el => el.textContent = "");
+
+      let valid = true;
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const age = document.getElementById('age').value;
+      const dob = document.getElementById('dob').value;
+      const gender = document.querySelector('input[name="gender"]:checked');
+      const hobbies = Array.from(document.querySelectorAll('.checkbox-group input:checked')).map(el => el.value);
+      const country = document.getElementById('country').value;
+
+      
+      if (!name || name.length < 2 || name.length > 50) {
+        document.getElementById('nameError').textContent = "Name must be 2–50 characters.";
+        valid = false;
+      }
+
+      const allowedDomains = ["gmail.com", "yahoo.com", "outlook.com"];
+      const emailParts = email.split("@");
+      const domain = emailParts[1] || "";
+
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        document.getElementById('emailError').textContent = "Enter a valid email address.";
+        valid = false;
+      } else if (!allowedDomains.includes(domain)) {
+        document.getElementById('emailError').textContent = `Email domain must be one of: ${allowedDomains.join(", ")}`;
+        valid = false;
+      }
+
+      if (!age || isNaN(age) || age < 1 || age > 120) {
+        document.getElementById('ageError').textContent = "Age must be a number between 1–120.";
+        valid = false;
+      }
+
+      if (!dob) {
+        document.getElementById('dobError').textContent = "Date of Birth is required.";
+        valid = false;
+      } else {
+        const today = new Date().toISOString().split("T")[0];
+        if (dob > today) {
+          document.getElementById('dobError').textContent = "Date of Birth cannot be in the future.";
+          valid = false;
+        }
+      }
+
+      if (!gender) {
+        document.getElementById('genderError').textContent = "Please select your gender.";
+        valid = false;
+      }
+
+      if (hobbies.length === 0) {
+        document.getElementById('hobbiesError').textContent = "Please select at least one hobby.";
+        valid = false;
+      }
+
+      if (!country) {
+        document.getElementById('countryError').textContent = "Please select your country.";
+        valid = false;
+      }
+
+      if (!valid) return;
+
+      const data = {
+        name,
+        email,
+        age: Number(age),
+        dob,
+        gender: gender.value,
+        hobbies,
+        country
+      };
+
+      if (editIndex !== null) {
+        jsonData[editIndex] = data;
+        editIndex = null;
+      } else {
+        jsonData.push(data);
+      }
+
+      localStorage.setItem('formData', JSON.stringify(jsonData));
+      renderData();
+      form.reset();
+    });
+
+    renderData();
+  </script>
+</body>
+</html>
